@@ -31,29 +31,43 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true }, // In real apps, we encrypt this!
   name: String,
   role: { type: String, enum: ['guard', 'resident'], required: true },
-  flatNumber: String // Only needed if role is 'resident'
+  flatNumber: String, // Only needed if role is 'resident'
+  pushToken: String
 });
 
 const User = mongoose.model('User', userSchema);
 
 // 4. UPDATED POST ROUTE: Actually saving to Database
+// CREATE Visitor & NOTIFY Resident
 app.post('/visitor-request', async (req, res) => {
-  // This will print to your VS Code terminal every time a guard pings
-  console.log("🔔 New Visitor Pinged from App!");
-  console.log("Details:", req.body); 
-
+  console.log("🔔 New Visitor:", req.body);
   try {
+    const { name, flatNumber } = req.body;
+
+    // 1. Save Visitor
     const newVisitor = new Visitor(req.body);
-    const savedVisitor = await newVisitor.save();
-    
-    console.log("✅ Successfully saved to Database ID:", savedVisitor._id);
-    
-    res.status(201).json({ message: "Saved to Database!", data: savedVisitor });
+    await newVisitor.save();
+
+    // 2. Find the Resident of that flat
+    const resident = await User.findOne({ flatNumber: flatNumber, role: 'resident' });
+
+    // 3. Send Notification if resident exists & has a token
+    if (resident && resident.pushToken) {
+      console.log(`📲 Sending notification to ${resident.name}...`);
+      await sendPushNotification(
+        resident.pushToken, 
+        "New Visitor! 🔔", 
+        `${name} is at the gate.`
+      );
+    }
+
+    res.status(201).json({ message: "Saved & Notified!", data: newVisitor });
   } catch (error) {
-    console.log("❌ Database Error:", error);
-    res.status(500).json({ message: "Error saving data", error });
+    console.error(error);
+    res.status(500).json({ error });
   }
 });
+
 // GET All Visitors (For Guard Dashboard)
 app.get('/all-visitors', async (req, res) => {
   try {
@@ -129,6 +143,38 @@ app.post('/register-test', async (req, res) => {
     const newUser = new User(req.body);
     await newUser.save();
     res.json({ message: "User Created!", user: newUser });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+// HELPER: Send Notification to Expo
+const sendPushNotification = async (expoPushToken, title, body) => {
+  if (!expoPushToken) return;
+  
+  const message = {
+    to: expoPushToken,
+    sound: 'default',
+    title: title,
+    body: body,
+    data: { someData: 'goes here' },
+  };
+
+  await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-encoding': 'gzip, deflate',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(message),
+  });
+};
+// SAVE PUSH TOKEN
+app.patch('/update-token', async (req, res) => {
+  const { phone, token } = req.body;
+  try {
+    await User.findOneAndUpdate({ phone: phone }, { pushToken: token });
+    res.json({ message: "Token updated" });
   } catch (error) {
     res.status(500).json({ error });
   }
