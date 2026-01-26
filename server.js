@@ -78,6 +78,62 @@ app.get('/all-visitors', async (req, res) => {
     res.status(500).json({ error });
   }
 });
+// --- ADMIN ROUTES ---
+
+// 1. Get Dashboard Stats
+app.get('/admin/stats', async (req, res) => {
+  try {
+    const guards = await User.countDocuments({ role: 'guard' });
+    const residents = await User.countDocuments({ role: 'resident' });
+    const visitors = await Visitor.countDocuments({}); // Total visitors ever
+    res.json({ guards, residents, visitors });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+// 2. Get All Users (Guards or Residents)
+app.get('/admin/users/:role', async (req, res) => {
+  try {
+    const users = await User.find({ role: req.params.role });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+// 3. Create New User (Guard/Resident)
+app.post('/admin/create-user', async (req, res) => {
+  try {
+    const newUser = new User(req.body);
+    await newUser.save();
+    res.json({ message: "User Created Successfully", user: newUser });
+  } catch (error) {
+    res.status(500).json({ error: "Phone number likely exists already" });
+  }
+});
+
+// 4. Delete User
+app.delete('/admin/user/:id', async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "User Deleted" });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+// 5. Update User
+app.put('/admin/user/:id', async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, req.body);
+    res.json({ message: "User Updated" });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`Server started on http://localhost:${PORT}`);
 });
@@ -179,3 +235,4 @@ app.patch('/update-token', async (req, res) => {
     res.status(500).json({ error });
   }
 });
+
