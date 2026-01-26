@@ -34,6 +34,64 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// 1. ANNOUNCEMENT SCHEMA
+const announcementSchema = new mongoose.Schema({
+  title: String,
+  message: String,
+  target: { type: String, enum: ['all', 'resident', 'guard'], default: 'all' },
+  date: { type: Date, default: Date.now }
+});
+
+const Announcement = mongoose.model('Announcement', announcementSchema);
+
+// 2. POST API: Create Announcement & Notify
+app.post('/admin/announce', async (req, res) => {
+  try {
+    const { title, message, target } = req.body;
+
+    // A. Save to Database
+    const newAnnouncement = new Announcement({ title, message, target });
+    await newAnnouncement.save();
+
+    // B. Find Users to Notify
+    let filter = {};
+    if (target === 'resident') filter = { role: 'resident' };
+    if (target === 'guard') filter = { role: 'guard' };
+    // if 'all', filter remains {} (finds everyone)
+
+    const usersToNotify = await User.find(filter);
+
+    // C. Send Push Notifications (Loop through users)
+    // In a real production app, use 'sendMulticast' or a queue to handle 100s of users.
+    // For now, a simple loop works fine.
+    usersToNotify.forEach(user => {
+      if (user.pushToken) {
+        sendPushNotification(user.pushToken, `📢 ${title}`, message);
+      }
+    });
+
+    res.json({ message: "Announcement Sent!", count: usersToNotify.length });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+});
+
+// 3. GET API: Fetch Announcements (For Resident/Guard Apps)
+app.get('/announcements/:role', async (req, res) => {
+  try {
+    const { role } = req.params;
+    // Fetch announcements that match the role OR are for 'all'
+    const notices = await Announcement.find({
+      $or: [{ target: role }, { target: 'all' }]
+    }).sort({ date: -1 }); // Newest first
+    
+    res.json(notices);
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
 // VISITOR SCHEMA
 const visitorSchema = new mongoose.Schema({
   name: String,
@@ -271,5 +329,6 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
 });
+
 
 
