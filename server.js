@@ -188,6 +188,7 @@ app.get('/visitors/:flat', async (req, res) => {
 });
 
 // UPDATE Visitor Status (Approve/Reject) + TIMESTAMP LOGIC
+// UPDATE Visitor Status (Approve/Reject) + TIMESTAMP LOGIC
 app.put('/visitor-response', async (req, res) => {
   try {
     const { id, status } = req.body;
@@ -195,9 +196,9 @@ app.put('/visitor-response', async (req, res) => {
     // Prepare update object
     let updateData = { status };
 
-    // If Approved, stamp the time
-    if (status === 'Approved') {
-      updateData.approvalTime = new Date();
+    // If Approved OR Rejected -> Stamp the time
+    if (status === 'Approved' || status === 'Rejected') {
+      updateData.approvalTime = new Date(); // We can reuse this field for both decisions
     }
 
     const updatedVisitor = await Visitor.findByIdAndUpdate(id, updateData, { new: true });
@@ -271,3 +272,4 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
 });
+
