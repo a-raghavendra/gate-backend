@@ -17,5 +17,7 @@
     "mongoose": "^9.1.4",
     "nodemon": "^3.1.11",
     "cors": "^2.8.5"
+    "firebase-admin": "^12.7.0",
+
   }
 }
