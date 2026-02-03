@@ -5,6 +5,40 @@ const cors = require('cors'); // Recommended for mobile to talk to server
 
 const app = express();
 const PORT = process.env.PORT || 4800;
+const admin = require('firebase-admin');
+// 1. Check if running on Render (Production) vs Local
+const serviceAccountPath = process.env.RENDER 
+  ? '/etc/secrets/service-account.json'  // Render Path
+  : './service-account.json';            // Local Path
+const serviceAccount = require(serviceAccountPath);
+// 1. Initialize Firebase
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+// 2. New Endpoint: Send Notification
+app.post('/send-notification', async (req, res) => {
+  const { token, title, body, data } = req.body;
+
+  // Construct the message payload
+  const message = {
+    notification: {
+      title: title,
+      body: body,
+    },
+    data: data || {}, // Optional extra data (e.g., visitor ID)
+    token: token, // The device token you saved earlier
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log('Successfully sent message:', response);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.log('Error sending message:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.use(express.json());
 app.use(cors()); // Allow cross-origin requests
@@ -329,6 +363,7 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server started on port ${PORT}`);
 });
+
 
 
 
