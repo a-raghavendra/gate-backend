@@ -216,8 +216,98 @@ app.put('/visitor-response', async (req, res) => {
   }
 });
 
+
+// GET Visitors for Specific Flat (For Resident Dashboard)
+app.get('/visitors/:flat', async (req, res) => {
+  try {
+    const { flat } = req.params;
+    const visitors = await Visitor.find({ flatNumber: flat }).sort({ entryTime: -1 });
+    res.json(visitors);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching flat visitors", error });
+  }
+});
+
+// UPDATE Visitor Status (Approve/Reject) + TIMESTAMP LOGIC
+app.put('/visitor-response', async (req, res) => {
+  try {
+    const { id, status } = req.body;
+
+    // Prepare update object
+    let updateData = { status };
+
+    // 🔴 CRITICAL CHANGE: 
+    // We now check for BOTH 'Approved' OR 'Rejected'
+    if (status === 'Approved' || status === 'Rejected') {
+      updateData.approvalTime = new Date(); 
+    }
+
+    const updatedVisitor = await Visitor.findByIdAndUpdate(id, updateData, { new: true });
+
+    res.json({ message: "Status Updated", data: updatedVisitor });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+// ---------------------------------------------------------
+// 6. ADMIN ROUTES
+// ---------------------------------------------------------
+
+// Admin Dashboard Stats
+app.get('/admin/stats', async (req, res) => {
+  try {
+    const guards = await User.countDocuments({ role: 'guard' });
+    const residents = await User.countDocuments({ role: 'resident' });
+    const visitors = await Visitor.countDocuments({}); 
+    res.json({ guards, residents, visitors });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+// Get Users by Role
+app.get('/admin/users/:role', async (req, res) => {
+  try {
+    const users = await User.find({ role: req.params.role });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+// Create New User (Admin)
+app.post('/admin/create-user', async (req, res) => {
+  try {
+    const newUser = new User(req.body);
+    await newUser.save();
+    res.json({ message: "User Created Successfully", user: newUser });
+  } catch (error) {
+    res.status(500).json({ error: "Phone number likely exists already" });
+  }
+});
+
+// Delete User
+app.delete('/admin/user/:id', async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: "User Deleted" });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
+// Update User
+app.put('/admin/user/:id', async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, req.body);
+    res.json({ message: "User Updated" });
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
