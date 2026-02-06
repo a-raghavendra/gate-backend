@@ -167,6 +167,21 @@ app.post('/admin/announce', async (req, res) => {
   }
 });
 
+// 3. GET API: Fetch Announcements (For Resident/Guard Apps)
+app.get('/announcements/:role', async (req, res) => {
+  try {
+    const { role } = req.params;
+    // Fetch announcements that match the role OR are for 'all'
+    const notices = await Announcement.find({
+      $or: [{ target: role }, { target: 'all' }]
+    }).sort({ date: -1 }); // Newest first
+
+    res.json(notices);
+  } catch (error) {
+    res.status(500).json({ error });
+  }
+});
+
 // ---------------------------------------------------------
 // 5. STANDARD ROUTES (Login, Get Data, etc.)
 // ---------------------------------------------------------
@@ -309,5 +324,6 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
