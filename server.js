@@ -126,10 +126,12 @@ app.post('/visitor-request', async (req, res) => {
 });
 
 // POST: Save Push Token (Called when app opens)
+// POST: Save Push Token
 app.patch('/update-token', async (req, res) => {
-  const { phone, token } = req.body;
+  const { userId, token } = req.body; // 👈 Accept userId instead of phone
   try {
-    await User.findOneAndUpdate({ phone: phone }, { pushToken: token });
+    // 👈 Find by _id instead of phone
+    await User.findByIdAndUpdate(userId, { pushToken: token }); 
     res.json({ message: "Token updated" });
   } catch (error) {
     res.status(500).json({ error });
@@ -218,3 +220,4 @@ app.put('/visitor-response', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
