@@ -65,6 +65,8 @@ const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
     sound: 'default',
     title: title,
     body: body,
+    channelId: "default",   // 👈 REQUIRED for Android 8+
+    priority: "high",
     data: data, // Payload for when user taps the notification
   };
 
@@ -324,6 +326,7 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
