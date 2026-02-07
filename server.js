@@ -40,7 +40,8 @@ const visitorSchema = new mongoose.Schema({
   flatNumber: String,
   status: { type: String, default: 'Pending' },
   entryTime: { type: Date, default: Date.now },
-  approvalTime: { type: Date } 
+  approvalTime: { type: Date }
+  mobile: { type: String, required: true }
 });
 const Visitor = mongoose.model('Visitor', visitorSchema);
 
@@ -95,7 +96,7 @@ const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
 app.post('/visitor-request', async (req, res) => {
   console.log("🔔 New Visitor Request:", req.body);
   try {
-    const { name, flatNumber, purpose } = req.body;
+    const { name, flatNumber, purpose, mobile } = req.body;
 
     // A. Save Visitor
     const newVisitor = new Visitor(req.body);
@@ -326,6 +327,7 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
