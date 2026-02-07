@@ -323,10 +323,28 @@ app.put('/admin/user/:id', async (req, res) => {
   }
 });
 
+// server.js
+
+// 👇 NEW: Logout endpoint to clear push token
+app.post('/logout', async (req, res) => {
+  const { userId } = req.body; 
+
+  try {
+    // Find user and remove their pushToken (Set it to null or empty string)
+    await User.findByIdAndUpdate(userId, { pushToken: null });
+    
+    res.status(200).json({ message: 'Logged out and token cleared' });
+  } catch (error) {
+    console.log("Logout error:", error);
+    res.status(500).json({ message: 'Error clearing token' });
+  }
+});
+
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
