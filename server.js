@@ -40,7 +40,7 @@ const visitorSchema = new mongoose.Schema({
   flatNumber: String,
   status: { type: String, default: 'Pending' },
   entryTime: { type: Date, default: Date.now },
-  approvalTime: { type: Date }
+  approvalTime: { type: Date },
   mobile: { type: integer, required: true }
 });
 const Visitor = mongoose.model('Visitor', visitorSchema);
@@ -327,6 +327,7 @@ app.put('/admin/user/:id', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
