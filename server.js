@@ -339,11 +339,27 @@ app.post('/logout', async (req, res) => {
     res.status(500).json({ message: 'Error clearing token' });
   }
 });
+// server.js
+
+// 👇 NEW: Update Push Token Endpoint
+app.put('/update-push-token', async (req, res) => {
+  const { userId, pushToken } = req.body;
+
+  try {
+    // Find user and update ONLY the pushToken field
+    await User.findByIdAndUpdate(userId, { pushToken: pushToken });
+    res.status(200).json({ message: 'Token updated successfully' });
+  } catch (error) {
+    console.log("Token update error:", error);
+    res.status(500).json({ message: 'Error updating token' });
+  }
+});
 
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
