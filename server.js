@@ -6,8 +6,9 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 4800;
 
-app.use(express.json());
 app.use(cors()); 
+app.use(express.json({ limit: '10mb' })); 
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ---------------------------------------------------------
 // 1. DATABASE CONNECTION
@@ -29,6 +30,7 @@ const userSchema = new mongoose.Schema({
   name: String,
   role: { type: String, enum: ['guard', 'resident', 'admin'], required: true },
   flatNumber: String,
+  photo: { type: String, default: '' },
   pushToken: String // Stores "ExponentPushToken[...]"
 });
 const User = mongoose.model('User', userSchema);
@@ -41,6 +43,7 @@ const visitorSchema = new mongoose.Schema({
   status: { type: String, default: 'Pending' },
   entryTime: { type: Date, default: Date.now },
   approvalTime: { type: Date },
+  photo: { type: String, default: '' },
   mobile: { type: String, required: true }
 });
 const Visitor = mongoose.model('Visitor', visitorSchema);
@@ -359,6 +362,7 @@ app.put('/update-push-token', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
