@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { Expo } = require('expo-server-sdk');
+const expo = new Expo();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -12,7 +14,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ---------------------------------------------------------
 // 1. DATABASE CONNECTION
-// ---------------------------------------------------------
+// ---------------------------------------------------------patch
 const dbURI = process.env.MONGO_URI;
 
 mongoose.connect(dbURI)
@@ -31,7 +33,7 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['guard', 'resident', 'admin'], required: true },
   flatNumber: String,
   photo: { type: String, default: '' },
-  pushToken: String // Stores "ExponentPushToken[...]"
+  pushToken: { type: String, default: null}  // Stores "ExponentPushToken[...]"
 });
 const User = mongoose.model('User', userSchema);
 
@@ -57,10 +59,26 @@ const announcementSchema = new mongoose.Schema({
 });
 const Announcement = mongoose.model('Announcement', announcementSchema);
 
+
+
+// GET: Get all users in a specific flat
+app.get('/users-by-flat/:flatNumber', async (req, res) => {
+  try {
+    const { flatNumber } = req.params;
+    
+    // Find all users with this flat number
+    const users = await User.find({ flatNumber: flatNumber }).select('name role');
+    
+    res.json(users);
+  } catch (error) {
+    console.error("Error fetching flat members:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
 // ---------------------------------------------------------
 // 3. HELPER FUNCTION (The Production Notification Sender)
 // ---------------------------------------------------------
-const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
+/*const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
   if (!expoPushToken) return;
   
   // Expo's Production API
@@ -89,8 +107,36 @@ const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
   } catch (error) {
     console.error("❌ Error sending notification:", error);
   }
+}; */
+
+const sendPushNotification = async (targetToken, message) => {
+  if (!Expo.isExpoPushToken(targetToken)) {
+    console.error(`Push token ${targetToken} is not a valid Expo push token`);
+    return;
+  }
+
+  const chunks = expo.chunkPushNotifications([
+    {
+      to: targetToken,
+      sound: 'default',
+      title: 'Visitor Alert! 🔔',
+      body: message,
+      data: { withSome: 'data' },
+    }
+  ]);
+
+  for (let chunk of chunks) {
+    try {
+      const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+      console.log('✅ Notification Sent:', ticketChunk);
+    } catch (error) {
+      console.error('❌ Error sending notification:', error);
+    }
+  }
 };
 
+// Call this when a visitor is added
+// sendPushNotification(user.pushToken, "Your delivery is here!");
 // ---------------------------------------------------------
 // 4. MAIN ROUTES (Visitor & Notifications)
 // ---------------------------------------------------------
@@ -112,12 +158,10 @@ app.post('/visitor-request', async (req, res) => {
       // C. Notify them
       residents.forEach(resident => {
         if (resident.pushToken) {
-           sendPushNotification(
-             resident.pushToken, 
-             "New Visitor! 🔔", 
-             `${name} is at the gate for ${purpose || 'visit'}.`,
-             { visitorId: newVisitor._id } // Data payload
-           );
+            const msg = `New Visitor: ${resident.name} is waiting to visit you (${flatNumber}).`;
+            
+            // 3. Send Notification
+             sendPushNotification(resident.pushToken, msg);
         }
       });
       res.status(201).json({ message: "Visitor Logged & Residents Notified", data: newVisitor });
@@ -131,9 +175,66 @@ app.post('/visitor-request', async (req, res) => {
   }
 });
 
+// PUT: Update Visitor Destination (Flat/Office)
+// PUT: Update Visitor Target & Notify New Resident
+app.put('/update-visitor-target', async (req, res) => {
+  const { id, flatNumber, purpose } = req.body;
+  
+  console.log("📝 Update Request - Purpose:", purpose);
+
+  if (!id || !flatNumber) {
+    return res.status(400).json({ message: "Missing visitor ID or new target" });
+  }
+
+  try {
+    // 1. Update Visitor in Database
+    const updatedVisitor = await Visitor.findByIdAndUpdate(
+      id,
+      { flatNumber: flatNumber, purpose: purpose }, 
+      { new: true } 
+    );
+
+    if (!updatedVisitor) {
+      return res.status(404).json({ message: "Visitor not found" });
+    }
+
+    console.log(`✅ Updated visitor ${updatedVisitor.name} to visit ${flatNumber}`);
+
+    // --- 👇 NEW: NOTIFICATION LOGIC ---
+    try {
+        // 2. Find the Resident linked to the NEW flatNumber
+        const resident = await User.findOne({ flatNumber: flatNumber });
+
+        if (resident && resident.pushToken) {
+            const msg = `New Visitor ${updatedVisitor.name} is waiting to Visit you (${flatNumber}).`;
+            
+            // 3. Send Notification
+            await sendPushNotification(resident.pushToken, msg);
+        } else {
+            console.log(`⚠️ No resident found for ${flatNumber} or no token available.`);
+        }
+    } catch (notifyError) {
+        console.error("❌ Notification failed (but update succeeded):", notifyError);
+        // We do NOT stop the response here; the update was successful.
+    }
+    // ----------------------------------
+
+    // 4. Send Success Response
+    res.json({ 
+      success: true, 
+      message: "Destination updated & Notification sent", 
+      data: updatedVisitor 
+    });
+
+  } catch (error) {
+    console.error("❌ Update Error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+});
+
 // POST: Save Push Token (Called when app opens)
 // POST: Save Push Token
-app.patch('/update-token', async (req, res) => {
+app.post('/update-token', async (req, res) => {
   const { userId, token } = req.body; // 👈 Accept userId instead of phone
   try {
     // 👈 Find by _id instead of phone
@@ -203,7 +304,8 @@ app.post('/login', async (req, res) => {
           name: user.name, 
           role: user.role, 
           flatNumber: user.flatNumber,
-          _id: user._id 
+          _id: user._id,
+          mobile:user.phone
         } 
       });
     } else {
@@ -362,7 +464,6 @@ app.put('/update-push-token', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
-
 
 
 
