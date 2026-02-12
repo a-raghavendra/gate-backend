@@ -97,7 +97,7 @@ const sendPushNotification = async (expoPushToken, title, body, data = {}) => {
 
 // POST: Create Visitor & Notify Resident
 app.post('/visitor-request', async (req, res) => {
-  console.log("🔔 New Visitor Request:", req.body);
+  console.log("🔔 New Visitor Request:", req.body.name);
   try {
     const { name, flatNumber, purpose, mobile } = req.body;
 
@@ -362,6 +362,7 @@ app.put('/update-push-token', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
