@@ -447,15 +447,33 @@ app.post('/logout', async (req, res) => {
 // server.js
 
 // 👇 NEW: Update Push Token Endpoint
+// PUT: Update Push Token (Handles Logout too)
 app.put('/update-push-token', async (req, res) => {
   const { userId, pushToken } = req.body;
 
+  // 1. Validation: Only userId is strictly required
+  if (!userId) {
+    return res.status(400).json({ message: 'Missing userId' });
+  }
+
   try {
-    // Find user and update ONLY the pushToken field
-    await User.findByIdAndUpdate(userId, { pushToken: pushToken });
-    res.status(200).json({ message: 'Token updated successfully' });
+    // 2. Update the User
+    // If pushToken is null, it clears the field in MongoDB
+    const updatedUser = await User.findByIdAndUpdate(
+      userId, 
+      { pushToken: pushToken },
+      { new: true } 
+    );
+
+    if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+    }
+
+    console.log(`✅ Token updated for ${updatedUser.name}: ${pushToken}`);
+    res.status(200).json({ message: 'Token updated' });
+
   } catch (error) {
-    console.log("Token update error:", error);
+    console.error("❌ Token update error:", error);
     res.status(500).json({ message: 'Error updating token' });
   }
 });
@@ -464,6 +482,7 @@ app.put('/update-push-token', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
