@@ -158,8 +158,8 @@ app.post('/visitor-request', async (req, res) => {
       // C. Notify them
       residents.forEach(resident => {
         if (resident.pushToken) {
-            const msg = `New Visitor: ${resident.name} is waiting to visit you (${flatNumber}).`;
-            
+            const msg = `New Visitor: ${residents.name} is waiting to visit you (${flatNumber}).`;
+            console.log(msg)
             // 3. Send Notification
              sendPushNotification(resident.pushToken, msg);
         }
@@ -482,6 +482,7 @@ app.put('/update-push-token', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Production Server started on port ${PORT}`);
 });
+
 
 
 
